@@ -154,9 +154,9 @@ class MAML:
             self.total_accuracies2 = total_accuracies2 = [tf.reduce_sum(accuraciesb[j])/tf.to_float(FLAGS.meta_batch_size)
                                                           for j in range(num_updates)]
 
-            regular_item = tf.add_n(tf.get_collection('losses')) - self.losses_value_old
-            self.regu = regular_item
-            self.losses_value_old = tf.add_n(tf.get_collection('losses'))
+            # regular_item = tf.add_n(tf.get_collection('losses')) - self.losses_value_old
+            # self.regu = regular_item
+            # self.losses_value_old = tf.add_n(tf.get_collection('losses'))
 
             # loss_final = self.total_losses2[FLAGS.num_updates-1] + regular_item
             loss_final = self.total_losses2[FLAGS.num_updates-1]
