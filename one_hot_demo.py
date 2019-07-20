@@ -1,16 +1,12 @@
-# -*- coding: UTF-8 -*-
-from math import sqrt
+import numpy as np
 
-min_ = 640
-min_i = 0
-min_j = 0
+def func(x):
+    result = 0.001
+    for i in range(28):
+        result = result * x
+    return result
 
-for i in range(640):
-    for j in range(640):
-        if i * j == 640:
-            if abs(i - j) < min_:
-                min_ = abs(i - j)
-                min_i = i
-                min_j = j
-
-print('i: {}, j: {}'.format(min_i, min_j))
+print(func(0.999))
+print(func(0.99))
+print(func(0.95))
+print(func(0.9))

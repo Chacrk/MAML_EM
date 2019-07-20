@@ -111,7 +111,7 @@ def conv_block(inp, cweight, bweight, reuse, scope, activation=tf.nn.relu, max_p
     if FLAGS.max_pool:
         conv_output = tf.nn.conv2d(inp, cweight, no_stride, 'SAME') + bweight
     else:
-        conv_output = tf.nn.conv2d(inp, cweight, stride, 'SAME') + bweight
+        conv_output = tf.nn.conv2d(inp, cweight, no_stride, 'SAME') + bweight
     normed = normalize(conv_output, activation, reuse, scope)
     if FLAGS.max_pool:
         normed = tf.nn.max_pool(normed, stride, stride, max_pool_pad)

@@ -27,11 +27,6 @@ flags.DEFINE_float('meta_lr', 0.001, 'the base learning rate of the generator,Ad
 flags.DEFINE_integer('update_batch_size', 5, 'number of examples used for inner gradient update (K for K-shot learning).')
 flags.DEFINE_float('update_lr', 0.01, 'step size alpha for inner gradient update.内层循环梯度alpha') # 0.1 for omniglot
 flags.DEFINE_integer('num_updates', 5, 'number of inner gradient updates during training.')
-flags.DEFINE_float('regularization_rate', 0.001, 'L2正则化率，有norm一般不再需要正则化')
-flags.DEFINE_integer('opt_switch_position', 300, '切换到SGD的位置')
-flags.DEFINE_integer('lr_switch_position', 300, '学习率*0.1的位置')
-flags.DEFINE_float('learning_rate_decay_rate', 0.95, '学习率衰减率')
-flags.DEFINE_float('learning_rate_decay_steps', 200, '学习率下降梯度长度')
 
 ## Model options
 flags.DEFINE_string('norm', 'batch_norm', 'batch_norm, layer_norm, or \'None\'')
@@ -101,8 +96,8 @@ def train(model, saver, sess, exp_string, data_generator, resume_itr=0):
             preacc, postacc = [], []
 
             # 打印学习率
-            learning_rate_result = sess.run(model.learning_rate)
-            print('learning rate now: {}'.format(learning_rate_result))
+            # learning_rate_result = sess.run(model.learning_rate)
+            # print('learning rate now: {}'.format(learning_rate_result))
 
             # shape_of_inputa = sess.run(model.inputa).shape
             # print('##############shape of inputa:{}'.format(shape_of_inputa))

@@ -59,12 +59,9 @@ class DataGenerator_embedding_one_instance(object):
         # 避免直接操作 Tensor，使用py_fun
         output_list = tf.py_func(_build_one_instance_py, [], [tf.float32])
         instance_input = output_list
-
-
-
-
         # 对 input data进行切分
         return instance_input
+
 
     def get_batch(self):
         dataset_path = 'data/miniimagenet/train_embeddings.pkl'
