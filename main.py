@@ -111,8 +111,8 @@ def train(model, saver, sess, exp_string, data_generator, resume_itr=0):
             # print('############# shape of lossesa: {}, lossesb: {}'.format(shape_of_lossesa, shape_of_lossesb))
 
         if (itr_now != 0) and itr_now % SAVE_INTERVAL == 0:
-            # 100轮保存一次
-            # 结果保存到模型文件中
+            # 1000轮保存一次
+            # 保存当前sess数据
             saver.save(sess, FLAGS.logdir + '/' + exp_string + '/model' + str(itr_now))
 
         '''
