@@ -53,11 +53,13 @@ class DataGenerator_embedding(object):
         all_classes_images = {}
         # embeddings_by_filename = {}
         for key_, value_ in enumerate(raw_data['keys']):
-            # value_ : '1230436854712308588-n02747177-n02747177_4367.JPEG'
+            #                               n01532829
+            # value_ : '1230436854712308588-n02747177-n02747177_4367.JPEG', or
+            # value_ : '1230436854712308588-n02747177-n0274717700004367.JPEG'
             # print('value_:{}'.format(value_))
             _, class_label_name, image_file_name = value_.split('-')
-            image_file_class_name = image_file_name.split('_')[0]
-            assert class_label_name == image_file_class_name
+            # image_file_class_name = image_file_name.split('_')[0]
+            # assert class_label_name == image_file_class_name
             if class_label_name not in all_classes_images:
                 all_classes_images[class_label_name] = []
             # <种类，文件名>

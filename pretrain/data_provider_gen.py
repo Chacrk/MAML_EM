@@ -14,55 +14,36 @@ import matplotlib.image as mpimg # mpimg 用于读取图片
 range(80*600): [0, 1, ... 48000]作为index_list，使用类控制next batch
 '''
 
-num_classes = 64
-
 class DataProvider:
-    def __init__(self, train):
-        self.train = train
+    def __init__(self, dataset_name='train'):
         self.index_now = 0
-        self.index_list = []
         self.img_name_list = []
         self.labels_list = []
         self.path = '../data/miniImagenet'
-        self.build_file_list()
+        self.build_file_list(dataset_name)
 
-    def one_hot(self, index, whole_count):
-        temp = [0 for i in range(whole_count)]
-        # print('index is : {}'.format(index))
-        temp[index] = 1
-        return np.array(temp)
-
-    def build_file_list(self):
-        if self.train is True:
-            # 拼接train.csv和 val.csv的list，共3个list，1.index，2.img_names, 3.labels
+    def build_file_list(self, dataset_name='train'):
+        '''
+        [img_name_0_0, img_name_0_1,...img_name_0_599,...img_name_63_599]
+        '''
+        if dataset_name == 'train':
             with open('{}/train.csv'.format(self.path)) as f_train:
                 csv_reader = csv.reader(f_train)
                 for index, row_item in enumerate(csv_reader):
                     if index == 0:
                         continue
                     image_name = row_item[0]
-                    self.index_list.append(index-1)
                     self.img_name_list.append(image_name)
-
-            # index_now = len(self.index_list)
-            # with open('{}/val.csv'.format(self.path)) as f_val:
-            #     csv_reader = csv.reader(f_val)
-            #     for index, row_item in enumerate(csv_reader):
-            #         if index == 0:
-            #             continue
-            #         image_name = row_item[0]
-            #         self.index_list.append(index_now + index - 1)
-            #         self.img_name_list.append(image_name)
-            self.labels_list = [i for i in range(num_classes) for _ in range(600)]
-            # print(len(self.labels_list))
-            '''
-            打乱
-            '''
-            random.shuffle(self.index_list) # [3,1,54,32,2,323,9...]
-            self.img_name_list = [self.img_name_list[i] for i in self.index_list]
-            # index用于指导
-            self.labels_list = [self.labels_list[i] for i in self.index_list]
-            self.labels_list = [self.one_hot(index=i, whole_count=num_classes) for i in self.labels_list]
+                    # label_name = row_item[1]
+                    # self.labels_list.append(label_name)
+        elif dataset_name == 'val':
+            with open('{}/val.csv'.format(self.path)) as f_val:
+                csv_reader = csv.reader(f_val)
+                for index, row_item in enumerate(csv_reader):
+                    if index == 0:
+                        continue
+                    image_name = row_item[0]
+                    self.img_name_list.append(image_name)
         else:
             with open('{}/test.csv'.format(self.path)) as f_test:
                 csv_reader = csv.reader(f_test)
@@ -70,24 +51,18 @@ class DataProvider:
                     if index == 0:
                         continue
                     image_name = row_item[0]
-                    self.index_list.append(index-1)
                     self.img_name_list.append(image_name)
-            self.labels_list = [i for i in range(20) for _ in range(600)]
-            random.shuffle(self.index_list)  # [3,1,54,32,2,323,9...]
-            self.img_name_list = [self.img_name_list[i] for i in self.index_list]
-            # index用于指导
-            self.labels_list = [self.labels_list[i] for i in self.index_list]
-            self.labels_list = [self.one_hot(index=i, whole_count=20) for i in self.labels_list]
-
+        # 打乱
+        random.shuffle(self.img_name_list)
 
     def get_single_image_by_path(self, file_name):
         path = '{}/images/{}'.format(self.path, file_name)
         img_np_array = mpimg.imread(path)
         img_np_array = img_np_array / 255.0
-        return img_np_array
+        return img_np_array # [80, 80, 3]
 
     def next_batch(self, count):
-        if len(self.index_list) - self.index_now <= count:
+        if len(self.labels_list) - self.index_now <= count:
             # 数据不足
             self.index_now = 0
         end = self.index_now + count
@@ -105,11 +80,18 @@ class DataProvider:
         labels_list_temp = self.labels_list[start: end]
         img_name_list_temp = self.img_name_list[start: end]
         img_list_temp = [self.get_single_image_by_path(item) for item in img_name_list_temp]
-        # if self.index_now % 10000 == 0:
-        #     print('start: {}, end: {}'.format(start, end))
-        #     print('img_name: {} to {}'.format(img_name_list_temp[0], img_name_list_temp[count-1]))
         self.index_now += count
         return np.asarray(img_list_temp), np.asarray(labels_list_temp)
+
+    def next_batch_name_and_file(self, count):
+        start = self.index_now % len(self.labels_list)
+        end = (self.index_now + count) % len(self.labels_list)
+        if start <= end:
+            return None, None # 到头了
+        img_name_list_temp = self.img_name_list[start: end]
+        img_file_list_temp = [self.get_single_image_by_path(item) for item in img_name_list_temp]
+        self.index_now += count
+        return np.asarray(img_name_list_temp), np.asarray(img_file_list_temp)
 
 
 

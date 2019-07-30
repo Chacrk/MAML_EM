@@ -24,14 +24,14 @@ flags.DEFINE_integer('pretrain_iterations', 0, 'number of pre-training iteration
 flags.DEFINE_integer('metatrain_iterations', 30000, 'number of metatraining iterations.') # 15k for omniglot, 50k for sinusoid
 flags.DEFINE_integer('meta_batch_size', 4, 'number of tasks sampled per meta-update')
 flags.DEFINE_float('meta_lr', 0.001, 'the base learning rate of the generator,Adam优化器学习率')
-flags.DEFINE_integer('update_batch_size', 5, 'number of examples used for inner gradient update (K for K-shot learning).')
+flags.DEFINE_integer('update_batch_size', 1, 'number of examples used for inner gradient update (K for K-shot learning).')
 flags.DEFINE_float('update_lr', 0.01, 'step size alpha for inner gradient update.内层循环梯度alpha') # 0.1 for omniglot
 flags.DEFINE_integer('num_updates', 5, 'number of inner gradient updates during training.')
 flags.DEFINE_float('regularization_rate', 0.001, 'L2正则化率，有norm一般不再需要正则化')
-flags.DEFINE_integer('opt_switch_position', 300, '切换到SGD的位置')
-flags.DEFINE_integer('lr_switch_position', 300, '学习率*0.1的位置')
+flags.DEFINE_integer('opt_switch_position', 150, '切换到SGD的位置')  # 也许需要切换到150，鉴于之前global_step双倍了
+flags.DEFINE_integer('lr_switch_position', 150, '学习率*0.1的位置')
 flags.DEFINE_float('learning_rate_decay_rate', 0.95, '学习率衰减率')
-flags.DEFINE_float('learning_rate_decay_steps', 200, '学习率下降梯度长度')
+flags.DEFINE_float('learning_rate_decay_steps', 100, '学习率下降梯度长度')
 
 ## Model options
 flags.DEFINE_string('norm', 'batch_norm', 'batch_norm, layer_norm, or \'None\'')
@@ -42,7 +42,8 @@ flags.DEFINE_bool('stop_grad', False, 'if True, do not use second derivatives in
 
 ## Logging, saving, and testing options
 flags.DEFINE_bool('log', True, 'if false, do not log summaries, for debugging code.')
-flags.DEFINE_string('logdir', 'logs/miniimagenet1shot/', 'directory for summaries and checkpoints.')
+flags.DEFINE_string('logdir', 'logs/miniimagenet1shot/', '文件存放位置')
+flags.DEFINE_string('model_name', 'model.ckpt', '模型名称')
 flags.DEFINE_bool('resume', True, 'resume training if there is a model available')
 flags.DEFINE_bool('train', True, 'True to train, False to test.')
 flags.DEFINE_integer('test_iter', -1, 'iteration to load model (-1 for latest model)')
@@ -57,7 +58,7 @@ def train(model, saver, sess, exp_string, data_generator, resume_itr=0):
     SUMMARY_INTERVAL = 100
     SAVE_INTERVAL = 1000
     PRINT_INTERVAL = 100
-    TEST_PRINT_INTERVAL = PRINT_INTERVAL*5
+    TEST_PRINT_INTERVAL = PRINT_INTERVAL * 5
 
     if FLAGS.log is True:
         train_writer = tf.summary.FileWriter(FLAGS.logdir + '/' + exp_string, sess.graph)
@@ -68,9 +69,11 @@ def train(model, saver, sess, exp_string, data_generator, resume_itr=0):
     num_classes = data_generator.num_classes
 
     for itr_now in range(resume_itr, FLAGS.pretrain_iterations + FLAGS.metatrain_iterations):
+        global_step = sess.run(model.global_step)
+        print('global_step 现在是{}, itr_now为{}'.format(global_step, itr_now))
         feed_dict = {}
         # 处于 meta train阶段
-        input_tensors = [model.metatrain_op, model.global_step]
+        input_tensors = [model.metatrain_op]
 
         # 保存或打印的间隔
         if itr_now % SUMMARY_INTERVAL == 0 or itr_now % PRINT_INTERVAL == 0:
@@ -80,12 +83,12 @@ def train(model, saver, sess, exp_string, data_generator, resume_itr=0):
         result = sess.run(input_tensors, feed_dict)
 
         if itr_now % SUMMARY_INTERVAL == 0:
-            prelosses.append(result[3])
-            preacc.append(result[5])
+            prelosses.append(result[2])
+            preacc.append(result[4])
             if FLAGS.log:
-                train_writer.add_summary(result[2], itr_now)
-            postlosses.append(result[4])
-            postacc.append(result[6])
+                train_writer.add_summary(result[1], itr_now)
+            postlosses.append(result[3])
+            postacc.append(result[5])
 
         '''
         pre_acc和post_acc效果比测试时候好很多的一个原因是：训练时候，k值比较大，使用1+15或5+15张图片进行训练
@@ -320,6 +323,7 @@ def main():
     model.summ_op = tf.summary.merge_all()
     saver = loader = tf.train.Saver(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES), max_to_keep=10)
 
+
     # 训练阶段
     if FLAGS.train is False:
         # 测试阶段使用原始的batch_size
@@ -356,6 +360,7 @@ def main():
     tf.local_variables_initializer().run()
     tf.train.start_queue_runners()
 
+    # cls_5.mbs_4.ubs_5.numstep5.updatelr0.01hidden32maxpoolbatchnorm
     if FLAGS.resume or not FLAGS.train:
         model_file = tf.train.latest_checkpoint(FLAGS.logdir + '/' + exp_string)
         if FLAGS.test_iter > 0:

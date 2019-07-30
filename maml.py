@@ -35,12 +35,6 @@ class MAML:
         self.decay_steps = FLAGS.learning_rate_decay_steps
         self.decay_rate = FLAGS.learning_rate_decay_rate
         self.learning_rate = FLAGS.meta_lr
-        # self.losses_value_old = tf.constant(0.0)
-        # self.losses_value_now = tf.constant(0.0)
-        # self.weights_ = []
-        # self.fast_weights_ = []
-        # self.lossesa = []
-        # self.lossesb = []
 
         if FLAGS.conv:
             self.dim_hidden = FLAGS.num_filters
@@ -178,13 +172,11 @@ class MAML:
             # self.losses_value_old = tf.add_n(tf.get_collection('losses'))
             # loss_final = self.total_losses2[FLAGS.num_updates-1] + regular_item
 
-            loss_final_1 = - self.total_accuracies2[FLAGS.num_updates-1]
-
             loss_final = self.total_losses2[FLAGS.num_updates-1]
 
             regu_item = self.regularizer(loss_final)
 
-            loss_final  = loss_final + regu_item
+            self.loss_final  = loss_final + regu_item
             # self.metatrain_op = tf.train.AdamOptimizer(self.meta_lr).minimize(-self.total_accuracies2[FLAGS.num_updates-1])
             self.global_step = tf.Variable(0, trainable=False)
 
@@ -200,16 +192,10 @@ class MAML:
                                                                             decay_rate=self.decay_rate,
                                                                             staircase=False))
 
-            # self.learning_rate = tf.train.exponential_decay(learning_rate=self.meta_lr,
-            #                                            global_step=self.global_step,
-            #                                            decay_steps=100,
-            #                                            decay_rate=0.999,
-            #                                            staircase=False)
-
             adam_optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
             self.gvs = adam_optimizer.compute_gradients(loss_final)
             # self.gvs = [(tf.clip_by_value(grad, 1, 10000), var) for grad, var in self.gvs]
-            metatrain_op_adm = adam_optimizer.apply_gradients(self.gvs, global_step=self.global_step)
+            metatrain_op_adm = adam_optimizer.apply_gradients(self.gvs)
 
             # 切换到SGD
             sgd_optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.learning_rate)
@@ -221,6 +207,12 @@ class MAML:
             self.metatrain_op = tf.cond(tf.greater(self.global_step, self.opt_switch_position),
                                         lambda:metatrain_op_adm,
                                         lambda:metatrain_op_sgd)
+
+            # self.metatrain_op = tf.cond(tf.greater(self.global_step, self.opt_switch_position),
+            #                      lambda: tf.train.GradientDescentOptimizer(learning_rate=self.learning_rate).minimize(self.loss_final,
+            #                                                                                                      global_step=self.global_step),
+            #                      lambda: tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.loss_final,
+            #                                                                                           global_step=self.global_step))
         else:
             print('else val')
             # 测试阶段

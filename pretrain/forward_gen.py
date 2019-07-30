@@ -3,19 +3,18 @@ from tensorflow.contrib.layers.python import layers as tf_layers
 import numpy as np
 import os
 
+OUTPUT_NODE_COUNT = 80
 IMAGE_PIXEL_SIZE = 80
 NUM_CHANNELS = 3
-NUM_LABEL_SIZE = 64
+NUM_LABEL_SIZE = 80
 K = 10
 
 '''
 临时变量
 tf.Variable(tf.random_normal([1, 1, input_shape[3], residual_shape[3]]), dtype=tf.float32)
 'SAME'全0填充
-input_tensor: [1000, 28, 28, 1]
+input_tensor: [1000, 80, 80, 3]
 '''
-
-
 
 def create_variables_by_shape(name, shape, initializer=tf.contrib.layers.xavier_initializer(), is_fc_layer=False):
     regularizer = tf.contrib.layers.l2_regularizer(scale=0.0001)
@@ -52,6 +51,7 @@ def bn_relu_conv_layer(input_layer, filter_shape, stride):
     in_channel = input_layer.get_shape().as_list()[-1]
     bn_lalyer = batch_norm_layer(input_layer, in_channel)
     relu_layer = tf.nn.relu(bn_lalyer)
+
     filter_ = create_variables_by_shape(name='conv', shape=filter_shape)
     conv_layer = tf.nn.conv2d(relu_layer, filter=filter_, strides=[1, stride, stride, 1], padding='SAME')
     return conv_layer
@@ -73,7 +73,7 @@ def residual_block(input_layer, output_channel, first_block=False):
             conv1 = tf.nn.conv2d(input_layer, filter=filter_, strides=[1, 1, 1, 1], padding='SAME')
         else:
             conv1 = bn_relu_conv_layer(input_layer, [3, 3, input_channel, output_channel], stride=stride)
-        conv1 = tf.nn.dropout(conv1, keep_prob=0.5)
+
     with tf.variable_scope('conv2_in_block'):
         conv2 = bn_relu_conv_layer(conv1, [3, 3, output_channel, output_channel], stride=1)
 
@@ -86,43 +86,60 @@ def residual_block(input_layer, output_channel, first_block=False):
     output = conv2 + padded_input
     return output
 
-def inference(input_data_tensor, count_each_block, reuse, regularizer, layer21=False):
+def inference(input_data_tensor, count_each_block, reuse, layer21=False):
     # input_data_tensor: [None, 80, 80, 3]
     layers = []
     with tf.variable_scope('conv0', reuse=reuse):
-        conv0 = conv_bn_relu_layer(input_data_tensor, filter_shape=[3, 3, NUM_CHANNELS, 16 * K], stride=1)
+        conv0 = conv_bn_relu_layer(input_data_tensor, filter_shape=[3, 3, NUM_CHANNELS, 16*K], stride=1)
         layers.append(conv0)
 
     for i in range(count_each_block):
         with tf.variable_scope('conv1_{}'.format(i), reuse=reuse):
             if i == 0:
-                conv1 = residual_block(input_layer=layers[-1], output_channel=16 * K, first_block=True)
+                conv1 = residual_block(input_layer=layers[-1], output_channel=16*K, first_block=True)
             else:
-                conv1 = residual_block(input_layer=layers[-1], output_channel=16 * K)
+                conv1 = residual_block(input_layer=layers[-1], output_channel=16*K)
             layers.append(conv1)
 
     for i in range(count_each_block):
         with tf.variable_scope('conv2_{}'.format(i), reuse=reuse):
-            conv2 = residual_block(input_layer=layers[-1], output_channel=32 * K,)
+            conv2 = residual_block(input_layer=layers[-1], output_channel=32*K)
             layers.append(conv2)
 
-    for i in range(count_each_block):
-        with tf.variable_scope('conv3_{}'.format(i), reuse=reuse):
-            conv3 = residual_block(input_layer=layers[-1], output_channel=64 * K)
+    '''
+    在这里截取第21层的数据
+    '''
+    if layer21 is True:
+        with tf.variable_scope('conv3_0', reuse=reuse):
+            conv3 = residual_block(input_layer=layers[-1], output_channel=64*K)
             layers.append(conv3)
+            conv3_1 = residual_block(input_layer=layers[-1], output_channel=64*K)
+            layers.append(conv3_1)
 
-    with tf.variable_scope('avg_pool', reuse=reuse):
-        in_channels = layers[-1].get_shape().as_list()[-1]
-        bn_layer = batch_norm_layer(layers[-1], in_channels)
-        relu_layer = tf.nn.relu(bn_layer)
-        global_pool = tf.reduce_mean(relu_layer, axis=[1, 2])
-        layers.append(global_pool)
+        with tf.variable_scope('avg_pool', reuse=reuse):
+            in_channels = layers[-1].get_shape().as_list()[-1]
+            bn_layer = batch_norm_layer(layers[-1], in_channels)
+            relu_layer = tf.nn.relu(bn_layer)
+            global_pool = tf.reduce_mean(relu_layer, axis=[1, 2])
+            layers.append(global_pool)
+        return layers[-1] # 返回的都是 [None, 640]的数据
+    else:
+        for i in range(count_each_block):
+            with tf.variable_scope('conv3_{}'.format(i), reuse=reuse):
+                conv3 = residual_block(input_layer=layers[-1], output_channel=64*K)
+                layers.append(conv3)
 
-    with tf.variable_scope('fc', reuse=reuse):
-        output = outputs_layer(layers[-1], NUM_LABEL_SIZE)
-        layers.append(output)
+        with tf.variable_scope('avg_pool', reuse=reuse):
+            in_channels = layers[-1].get_shape().as_list()[-1]
+            bn_layer = batch_norm_layer(layers[-1], in_channels)
+            relu_layer = tf.nn.relu(bn_layer)
+            global_pool = tf.reduce_mean(relu_layer, axis=[1, 2])
+            layers.append(global_pool)
 
-    return layers[-1]
+        # with tf.variable_scope('fc', reuse=reuse):
+        #     output = outputs_layer(layers[-1], NUM_LABEL_SIZE)
+        #     layers.append(output)
+        return layers[-1] # [None , 640]
 
 
 

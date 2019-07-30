@@ -6,7 +6,7 @@ import os
 
 from PIL import Image
 
-path_to_images = '../data/miniimagenet/images/'
+path_to_images = '../data/miniImagenet/images/'
 
 all_images = glob.glob(path_to_images + '*')
 
